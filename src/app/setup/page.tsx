@@ -123,60 +123,75 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-visible">
-        <div className="bg-blue-600 p-6 text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">환영합니다! 👋</h1>
-          <p className="text-blue-100 text-sm">연차 관리를 시작하기 위해 기본 정보를 설정해주세요.</p>
+    <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center p-4 font-sans text-[#1d1d1f]">
+      <div className="max-w-[480px] w-full bg-white rounded-[18px] border border-[#e0e0e0] overflow-hidden">
+        <div className="p-8 text-center border-b border-[#e0e0e0]">
+          <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[#1d1d1f] mb-2">환영합니다 👋</h1>
+          <p className="text-[#7a7a7a] text-[14px] font-normal">연차 관리를 시작하기 위해 기본 정보를 설정해주세요.</p>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">이름</label>
-            <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 placeholder-gray-400" required />
+            <label className="block text-[14px] font-semibold text-[#1d1d1f] mb-2">이름</label>
+            <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full border border-[#e0e0e0] rounded-[11px] p-3 focus:ring-1 focus:ring-[#0066cc] focus:border-[#0066cc] outline-none transition text-[#1d1d1f] placeholder-[#7a7a7a]" placeholder="이름을 입력하세요" required />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">고용 상태</label>
-              <select name="employmentStatus" value={formData.employmentStatus} onChange={handleChange} className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900">
+              <label className="block text-[14px] font-semibold text-[#1d1d1f] mb-2">고용 상태</label>
+              <select name="employmentStatus" value={formData.employmentStatus} onChange={handleChange} className="w-full border border-[#e0e0e0] rounded-[11px] p-3 focus:ring-1 focus:ring-[#0066cc] outline-none bg-white text-[#1d1d1f] appearance-none">
                 <option value="regular">일반 직원</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">소득 유형</label>
-              <select name="incomeType" value={formData.incomeType} onChange={handleChange} className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900">
+              <label className="block text-[14px] font-semibold text-[#1d1d1f] mb-2">소득 유형</label>
+              <select name="incomeType" value={formData.incomeType} onChange={handleChange} className="w-full border border-[#e0e0e0] rounded-[11px] p-3 focus:ring-1 focus:ring-[#0066cc] outline-none bg-white text-[#1d1d1f] appearance-none">
                 <option value="earned">근로소득자</option>
                 <option value="business">사업소득자</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">연차 초기화 기준</label>
-            <select name="resetRule" value={formData.resetRule} onChange={handleChange} className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900">
+            <label className="block text-[14px] font-semibold text-[#1d1d1f] mb-2">연차 초기화 기준</label>
+            <select name="resetRule" value={formData.resetRule} onChange={handleChange} className="w-full border border-[#e0e0e0] rounded-[11px] p-3 focus:ring-1 focus:ring-[#0066cc] outline-none bg-white text-[#1d1d1f] appearance-none">
               <option value="janFirst">매년 1월 1일 초기화</option>
               <option value="hireDate">입사일 기준 초기화</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">입사일</label>
+            <label className="block text-[14px] font-semibold text-[#1d1d1f] mb-2">입사일</label>
             <DatePicker value={formData.hireDate || ''} onChange={(date) => setFormData(prev => ({ ...prev, hireDate: date }))} min="2000-01-01" max="today" required />
-            <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-xs font-bold text-gray-700">근속 상태 (자동 계산)</p>
-              <p className="text-sm font-medium text-blue-600 mt-1">
+            <div className="mt-4 p-4 bg-[#f5f5f7] rounded-[11px] border border-[#e0e0e0]">
+              <p className="text-[12px] font-bold text-[#1d1d1f] uppercase tracking-wider mb-1">근속 상태 (자동 계산)</p>
+              <p className="text-[14px] font-semibold text-[#0066cc]">
                 {formData.hireDate && (new Date().getTime() - new Date(formData.hireDate).getTime()) < (365 * 24 * 60 * 60 * 1000) 
                   ? '입사 1년 미만 직원' 
                   : '입사 1년 이상 직원'}
               </p>
-              <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
+              <p className="text-[11px] text-[#7a7a7a] mt-2 leading-relaxed">
                 • 입사일을 기준으로 1년 미만 여부가 자동 계산됩니다.<br/>
-                • 입사 1년 미만 직원은 월별 만근 기준으로 연차가 발생합니다.<br/>
-                • 입사 1년 이상 직원은 근속연수 기준으로 연차가 계산됩니다.
+                • 1년 미만 직원은 월별 만근 기준으로 연차가 발생합니다.
               </p>
             </div>
           </div>
           
-          {preview}
+          {preview && (
+            <div className="mt-8 p-5 bg-[#f5f5f7] rounded-[11px] border border-[#e0e0e0]">
+              <h3 className="text-[17px] font-semibold tracking-[-0.015em] text-[#1d1d1f] mb-4">내 연차 미리보기</h3>
+              <ul className="space-y-3 text-[14px] text-[#1d1d1f]">
+                <li className="flex justify-between font-normal"><span className="text-[#7a7a7a]">이름</span> <span className="font-semibold">{formData.name}</span></li>
+                {formData.hireDate && (new Date(toDateKey(new Date())).getFullYear() - new Date(formData.hireDate).getFullYear() === 0 || (new Date(toDateKey(new Date())).getFullYear() - new Date(formData.hireDate).getFullYear() === 1 && new Date(toDateKey(new Date())) < new Date(new Date(toDateKey(new Date())).getFullYear(), new Date(formData.hireDate).getMonth(), new Date(formData.hireDate).getDate()))) ? (
+                  <>
+                    <li className="flex justify-between font-normal"><span className="text-[#7a7a7a]">현재 발생 연차</span> <span className="font-semibold">{calculateGrantedDays({ ...appData.settings, ...formData } as UserSettings, toDateKey(new Date())).actual}일</span></li>
+                    <li className="flex justify-between font-normal"><span className="text-[#7a7a7a]">앞으로 발생 가능</span> <span className="font-semibold">{calculateGrantedDays({ ...appData.settings, ...formData } as UserSettings, toDateKey(new Date())).projected}일</span></li>
+                  </>
+                ) : (
+                  <li className="flex justify-between font-normal"><span className="text-[#7a7a7a]">현재 발생 연차</span> <span className="font-semibold">{calculateGrantedDays({ ...appData.settings, ...formData } as UserSettings, toDateKey(new Date())).actual}일</span></li>
+                )}
+                <li className="flex justify-between pt-3 border-t border-[#e0e0e0] font-normal"><span className="text-[#7a7a7a]">다음 초기화일</span> <span className="font-semibold">{getNextResetDate({ ...appData.settings, ...formData } as UserSettings, toDateKey(new Date()))}</span></li>
+              </ul>
+            </div>
+          )}
           
-          <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg mt-6 hover:bg-blue-700 active:bg-blue-800 transition shadow-md">
+          <button type="submit" className="w-full bg-[#0066cc] text-white font-semibold py-4 rounded-full mt-8 hover:bg-[#0071e3] transition active:scale-95 text-[15px]">
             저장하고 다음 단계로
           </button>
         </form>
