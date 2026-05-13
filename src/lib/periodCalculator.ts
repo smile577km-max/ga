@@ -61,3 +61,12 @@ export function getDaysUntilReset(settings: UserSettings, todayKey: string): num
 export function isDateInCurrentPeriod(dateKey: string, period: { start: string; end: string }): boolean {
   return dateKey >= period.start && dateKey <= period.end;
 }
+
+export function getCurrentLeaveCycle(settings: UserSettings, todayKey: string): { cycleStartDate: string; cycleEndDate: string } {
+  const period = getCurrentLeavePeriod(settings, todayKey);
+  const cycleStartDate = period.start;
+  // cycleEndDate is inclusive in my logic (12-31), but user asked for exclusive (01-01)
+  // I will return the next reset date as the exclusive end date.
+  const cycleEndDate = getNextResetDate(settings, todayKey);
+  return { cycleStartDate, cycleEndDate };
+}

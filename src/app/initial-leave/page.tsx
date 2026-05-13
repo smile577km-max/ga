@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useAppData } from '@/components/providers/AppDataProvider';
 import { DatePicker } from '@/components/DatePicker';
 import { LeaveRecord, LeaveRecordType } from '@/types/leave';
-import { toDateKey, addDaysByDateKey } from '@/lib/dateUtils';
+import { toDateKey, addDaysByDateKey, getTodayDateKeyInKorea } from '@/lib/dateUtils';
 import { isHolidayOrNonWorkingDay, calculateConnectedLeaveUsageByWeek } from '@/lib/connectedUsageCalculator';
 import { calculateWorkingMinutes, convertMinutesToLeaveDays } from '@/lib/timeCalculator';
 import { formatLeaveUnits } from '@/lib/leaveFormatter';
 import { calculateGrantedDays } from '@/lib/leaveCalculator';
 import { FormattedLeaveUnits } from '@/components/FormattedLeaveUnits';
 import { parseExcelLeaveFile, ExcelParsedResult } from '@/lib/excelParser';
+import { getCurrentLeaveCycle } from '@/lib/periodCalculator';
 
 export default function InitialLeavePage() {
   const router = useRouter();
@@ -57,11 +58,14 @@ export default function InitialLeavePage() {
 
   // Recalculate auto connected usage when records change
   useEffect(() => {
-    if (records.length > 0) {
-      const autoCount = calculateConnectedLeaveUsageByWeek(records, appData.holidays, { start: '2000-01-01', end: '2100-01-01' });
+    if (records.length > 0 && isLoaded) {
+      const { cycleStartDate, cycleEndDate } = getCurrentLeaveCycle(appData.settings, getTodayDateKeyInKorea());
+      // period end in calculation is inclusive, so we subtract 1 day from cycleEndDate (which is next reset date)
+      const inclusiveEnd = addDaysByDateKey(cycleEndDate, -1);
+      const autoCount = calculateConnectedLeaveUsageByWeek(records, appData.holidays, { start: cycleStartDate, end: inclusiveEnd });
       setUsedConsecutive(autoCount);
     }
-  }, [records, appData.holidays]);
+  }, [records, appData.holidays, isLoaded, appData.settings]);
 
   // Auto-calculate end time based on duration and start time for hourly
   useEffect(() => {
@@ -159,7 +163,7 @@ export default function InitialLeavePage() {
         resetRule: appData.settings.resetRule,
         hireDate: appData.settings.hireDate
       };
-      const result = await parseExcelLeaveFile(file, records, mockSettings);
+      const result = await parseExcelLeaveFile(file, records, mockSettings, appData.holidays);
       setExcelResult(result);
       setShowExcelPreview(true);
     } catch (err) {
@@ -531,7 +535,7 @@ export default function InitialLeavePage() {
 
             <div className="p-6 border-t border-gray-100 bg-gray-50 shrink-0 flex flex-col gap-3">
               <div className="text-sm text-gray-600 text-center">
-                계산에 반영을 누르면 <strong>{excelResult.preview.toReflect.length}건</strong>의 내역이 기존 사용 내역에 합산됩니다.
+                현재 연차 사용 기간 밖의 내역은 계산에 반영하지 않았습니다.
               </div>
               <div className="flex gap-3">
                 <button 

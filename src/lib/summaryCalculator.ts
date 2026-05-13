@@ -1,10 +1,11 @@
 import { UserSettings } from '@/types/settings';
 import { LeaveRecord } from '@/types/leave';
 import { Holiday } from '@/types/holiday';
-import { getCurrentLeavePeriod, getNextResetDate, getDaysUntilReset } from './periodCalculator';
+import { getCurrentLeavePeriod, getNextResetDate, getDaysUntilReset, getCurrentLeaveCycle } from './periodCalculator';
 import { calculateGrantedDays } from './leaveCalculator';
 import { calculateConnectedLeaveUsageByWeek } from './connectedUsageCalculator';
 import { convertMinutesToLeaveDays } from './timeCalculator';
+import { addDaysByDateKey } from './dateUtils';
 
 export function processLeaveRecords(records: LeaveRecord[]) {
   const byDate: Record<string, LeaveRecord[]> = {};
@@ -50,17 +51,18 @@ export function calculateLeaveSummary(
   holidays: Holiday[],
   todayKey: string
 ) {
-  const period = getCurrentLeavePeriod(settings, todayKey);
+  const { cycleStartDate, cycleEndDate } = getCurrentLeaveCycle(settings, todayKey);
   const granted = calculateGrantedDays(settings, todayKey);
   
-  const validRecords = records.filter(r => r.date >= period.start && r.date <= period.end);
+  const validRecords = records.filter(r => r.date >= cycleStartDate && r.date < cycleEndDate);
   
   const recordedUsedDays = processLeaveRecords(validRecords);
   const initialUsedDaysTotal = settings.initialUsedDays + (settings.initialUsedHalfDays * 0.5) + (settings.initialUsedHours / 7);
   const totalUsedDays = initialUsedDaysTotal + recordedUsedDays;
   const remainingDays = granted.actual + settings.manualLeaveAdjustment - totalUsedDays;
 
-  const recordedConnectedUsageCount = calculateConnectedLeaveUsageByWeek(records, holidays, period);
+  const inclusiveEnd = addDaysByDateKey(cycleEndDate, -1);
+  const recordedConnectedUsageCount = calculateConnectedLeaveUsageByWeek(records, holidays, { start: cycleStartDate, end: inclusiveEnd });
   const totalConnectedUsageCount = settings.usedConsecutiveLeaveAdjustment + recordedConnectedUsageCount;
   const remainingConnectedUsageCount = 10 - totalConnectedUsageCount;
 
