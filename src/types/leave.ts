@@ -11,6 +11,8 @@ export interface LeaveRecord {
   deductedDays: number;
   memo?: string;
   isInitial?: boolean; // 앱 사용 전 이미 사용한 연차(초기 입력) 여부
+  source?: 'manual' | 'excel';
+  originalType?: string; // 엑셀에서 가져온 원본 구분 값
   createdAt: number; // timestamp
   updatedAt: number; // timestamp
 }

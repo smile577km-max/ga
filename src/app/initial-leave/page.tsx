@@ -11,6 +11,7 @@ import { calculateWorkingMinutes, convertMinutesToLeaveDays } from '@/lib/timeCa
 import { formatLeaveUnits } from '@/lib/leaveFormatter';
 import { calculateGrantedDays } from '@/lib/leaveCalculator';
 import { FormattedLeaveUnits } from '@/components/FormattedLeaveUnits';
+import { parseExcelLeaveFile, ExcelParsedResult } from '@/lib/excelParser';
 
 export default function InitialLeavePage() {
   const router = useRouter();
@@ -32,6 +33,11 @@ export default function InitialLeavePage() {
   const [durationHours, setDurationHours] = useState(2);
   const [startTime, setStartTime] = useState('09:50');
   const [endTime, setEndTime] = useState('11:50');
+
+  // Excel State
+  const [excelResult, setExcelResult] = useState<ExcelParsedResult | null>(null);
+  const [showExcelPreview, setShowExcelPreview] = useState(false);
+  const [isParsingExcel, setIsParsingExcel] = useState(false);
 
   useEffect(() => {
     if (isLoaded) {
@@ -142,6 +148,53 @@ export default function InitialLeavePage() {
     setShowModal(false);
   };
 
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsParsingExcel(true);
+    try {
+      const mockSettings: any = {
+        ...appData.settings,
+        resetRule: appData.settings.resetRule,
+        hireDate: appData.settings.hireDate
+      };
+      const result = await parseExcelLeaveFile(file, records, mockSettings);
+      setExcelResult(result);
+      setShowExcelPreview(true);
+    } catch (err) {
+      console.error(err);
+      alert('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+    } finally {
+      setIsParsingExcel(false);
+      e.target.value = ''; // Reset input
+    }
+  };
+
+  const handleApplyExcelRecords = () => {
+    if (!excelResult) return;
+    
+    console.log('[EXCEL] Applying records to state:', excelResult.records.length);
+    
+    const newRecords = excelResult.records.map(r => ({
+      ...r,
+      id: `excel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      isInitial: true,
+      source: 'excel' as const,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    })) as LeaveRecord[];
+
+    setRecords(prev => {
+      const updated = [...prev, ...newRecords];
+      console.log('[EXCEL] New total records:', updated.length);
+      return updated;
+    });
+    
+    setShowExcelPreview(false);
+    setExcelResult(null);
+  };
+
   const handleDeleteRecord = (id: string) => {
     setRecords(records.filter(r => r.id !== id));
   };
@@ -206,7 +259,7 @@ export default function InitialLeavePage() {
           </div>
           
             <div className="flex flex-col items-center gap-4 py-8">
-              <div className="w-full flex justify-center">
+              <div className="w-full flex flex-col sm:flex-row justify-center gap-3 px-6">
                 <button 
                   onClick={() => {
                     setStartDate(toDateKey(new Date()));
@@ -214,12 +267,26 @@ export default function InitialLeavePage() {
                     setModalType('full');
                     setShowModal(true);
                   }}
-                  className="bg-blue-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-blue-700 transition shadow-lg flex items-center gap-2"
+                  className="bg-blue-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-blue-700 transition shadow-lg flex items-center justify-center gap-2 flex-1"
                 >
-                  <span className="text-xl">+</span> 내역 추가하기
+                  <span className="text-xl">+</span> 직접 추가하기
                 </button>
+                
+                <label className="bg-white text-blue-600 border-2 border-blue-600 font-bold px-8 py-3 rounded-xl hover:bg-blue-50 transition shadow-sm flex items-center justify-center gap-2 flex-1 cursor-pointer">
+                  <span className="text-xl">📁</span> 엑셀 파일 불러오기
+                  <input 
+                    type="file" 
+                    accept=".xls,.xlsx" 
+                    className="hidden" 
+                    onChange={handleExcelUpload}
+                    disabled={isParsingExcel}
+                  />
+                </label>
               </div>
-              <p className="text-sm text-gray-500 mt-2 text-center">※ 달력의 날짜를 클릭하거나 위 버튼을 눌러 상세 사용 내역을 추가할 수 있습니다.</p>
+              <div className="text-center">
+                <p className="text-sm text-gray-500">회사 근태 엑셀 파일을 불러오면 사용 내역을 자동으로 입력할 수 있습니다.</p>
+                {isParsingExcel && <p className="text-sm text-blue-600 font-bold animate-pulse mt-2">파일을 분석하고 있습니다...</p>}
+              </div>
             </div>
         </div>
 
@@ -294,6 +361,200 @@ export default function InitialLeavePage() {
         </div>
 
       </div>
+
+      {/* Excel Preview Modal */}
+      {showExcelPreview && excelResult && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div className="bg-blue-600 p-4 flex justify-between items-center text-white shrink-0">
+              <h2 className="font-bold">엑셀에서 불러온 사용 내역</h2>
+              <button onClick={() => setShowExcelPreview(false)} className="text-white/80 hover:text-white">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-8">
+              {/* Stats Summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-center">
+                  <div className="text-xs text-blue-600 font-bold mb-1">반영 대상</div>
+                  <div className="text-lg font-black text-blue-800">{excelResult.preview.toReflect.length}건</div>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-center">
+                  <div className="text-xs text-gray-500 font-bold mb-1">차감 없음</div>
+                  <div className="text-lg font-black text-gray-700">{excelResult.preview.noDeduction.length}건</div>
+                </div>
+                <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 text-center">
+                  <div className="text-xs text-orange-600 font-bold mb-1">확인 필요</div>
+                  <div className="text-lg font-black text-orange-800">{excelResult.preview.needsCheck.length}건</div>
+                </div>
+                <div className="bg-red-50 p-3 rounded-lg border border-red-100 text-center">
+                  <div className="text-xs text-red-600 font-bold mb-1">제외 (중복/상태)</div>
+                  <div className="text-lg font-black text-red-800">{excelResult.preview.duplicates.length + excelResult.preview.excludedByStatus.length}건</div>
+                </div>
+                <div className="bg-purple-50 p-3 rounded-lg border border-purple-100 text-center">
+                  <div className="text-xs text-purple-600 font-bold mb-1">기간 밖 제외</div>
+                  <div className="text-lg font-black text-purple-800">{excelResult.preview.outOfPeriod.length}건</div>
+                </div>
+              </div>
+
+              {excelResult.preview.toReflect.length > 0 && (
+                <section>
+                  <h3 className="text-blue-700 font-bold flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    계산에 반영될 내역 ({excelResult.preview.toReflect.length}건)
+                  </h3>
+                  <div className="bg-blue-50/50 rounded-xl border border-blue-100 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-blue-100/50 text-blue-800 text-left">
+                        <tr>
+                          <th className="p-3 font-bold">날짜</th>
+                          <th className="p-3 font-bold">엑셀 구분</th>
+                          <th className="p-3 font-bold">반영 결과</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-blue-100">
+                        {excelResult.preview.toReflect.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-blue-100/20">
+                            <td className="p-3 font-medium text-gray-700">{item.date}</td>
+                            <td className="p-3 text-gray-500">{item.originalType}</td>
+                            <td className="p-3 font-bold text-blue-700">{item.displayValue}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {excelResult.preview.noDeduction.length > 0 && (
+                <section>
+                  <h3 className="text-gray-600 font-bold flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                    차감 없는 내역 ({excelResult.preview.noDeduction.length}건)
+                  </h3>
+                  <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-gray-200">
+                        {excelResult.preview.noDeduction.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="p-3 text-gray-700">{item.date}</td>
+                            <td className="p-3 text-gray-500">{item.originalType}</td>
+                            <td className="p-3 font-medium text-gray-500 italic">차감 없음</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {excelResult.preview.needsCheck.length > 0 && (
+                <section>
+                  <h3 className="text-orange-700 font-bold flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                    확인 필요한 내역 ({excelResult.preview.needsCheck.length}건)
+                  </h3>
+                  <div className="bg-orange-50 rounded-xl border border-orange-200 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-orange-200">
+                        {excelResult.preview.needsCheck.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="p-3 text-gray-700">{item.date}</td>
+                            <td className="p-3 text-gray-500">{item.originalType}</td>
+                            <td className="p-3 font-bold text-orange-600">{item.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {excelResult.preview.duplicates.length > 0 && (
+                <section>
+                  <h3 className="text-gray-500 font-bold flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+                    중복으로 제외된 내역 ({excelResult.preview.duplicates.length}건)
+                  </h3>
+                  <div className="text-xs text-gray-400 px-3 pb-2 italic">이미 등록된 내역과 날짜/유형이 일치하여 제외되었습니다.</div>
+                </section>
+              )}
+
+              {excelResult.preview.excludedByStatus.length > 0 && (
+                <section>
+                  <h3 className="text-red-700 font-bold flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                    처리상태 때문에 제외된 내역 ({excelResult.preview.excludedByStatus.length}건)
+                  </h3>
+                  <div className="bg-red-50 rounded-xl border border-red-100 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-red-100">
+                        {excelResult.preview.excludedByStatus.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="p-3 text-gray-700">{item.date}</td>
+                            <td className="p-3 text-gray-500">{item.originalType}</td>
+                            <td className="p-3 text-red-600 font-medium">{item.status} ({item.reason})</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+              {excelResult.preview.outOfPeriod.length > 0 && (
+                <section>
+                  <h3 className="text-purple-700 font-bold flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                    현재 연차 기간 밖 내역 ({excelResult.preview.outOfPeriod.length}건)
+                  </h3>
+                  <div className="bg-purple-50 rounded-xl border border-purple-200 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-purple-200">
+                        {excelResult.preview.outOfPeriod.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="p-3 text-gray-700">{item.date}</td>
+                            <td className="p-3 text-gray-500">{item.originalType}</td>
+                            <td className="p-3 font-bold text-purple-600 italic">계산 제외 (기간 밖)</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {excelResult.ignoredCount > 0 && (
+                <div className="text-xs text-gray-400 italic">
+                  ※ 날짜 또는 휴가 유형을 인식할 수 없는 {excelResult.ignoredCount}개의 행을 제외했습니다.
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50 shrink-0 flex flex-col gap-3">
+              <div className="text-sm text-gray-600 text-center">
+                계산에 반영을 누르면 <strong>{excelResult.preview.toReflect.length}건</strong>의 내역이 기존 사용 내역에 합산됩니다.
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    setShowExcelPreview(false);
+                    setExcelResult(null);
+                  }}
+                  className="flex-1 bg-white border border-gray-300 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-100 transition"
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={handleApplyExcelRecords}
+                  disabled={excelResult.preview.toReflect.length === 0}
+                  className="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  계산에 반영
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Record Modal */}
       {showModal && (
