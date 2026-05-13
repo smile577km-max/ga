@@ -19,6 +19,13 @@ export interface ExcelParsedResult {
     excludedByStatus: ExcelPreviewItem[];
     outOfPeriod: ExcelPreviewItem[];
   };
+  debugInfo?: {
+    resetRule: string;
+    hireDate: string;
+    today: string;
+    cycleStart: string;
+    cycleEnd: string;
+  };
 }
 
 export interface ExcelPreviewItem {
@@ -62,7 +69,14 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
         const dataRows = rows.slice(dataStartIdx);
         const result: ExcelParsedResult = { 
           records: [], ignoredCount: 0, 
-          preview: { toReflect: [], noDeduction: [], needsCheck: [], duplicates: [], excludedByStatus: [], outOfPeriod: [] } 
+          preview: { toReflect: [], noDeduction: [], needsCheck: [], duplicates: [], excludedByStatus: [], outOfPeriod: [] },
+          debugInfo: {
+            resetRule: settings.resetRule || '미설정',
+            hireDate: settings.hireDate || '미설정',
+            today: todayKey,
+            cycleStart: cycleStartDate,
+            cycleEnd: cycleEndDate
+          }
         };
 
         dataRows.forEach((row) => {
@@ -76,26 +90,25 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
           const startKey = rawDateStr.includes('-') ? rawDateStr : toDateKey(new Date(rawDateStr));
           const endKey = rawEndDateStr ? (rawEndDateStr.includes('-') ? rawEndDateStr : toDateKey(new Date(rawEndDateStr))) : startKey;
 
-          // Split multi-day into individual days
           let current = startKey;
           while (current <= endKey) {
             const previewItem: ExcelPreviewItem = { date: current, originalType: rawType, mappedType: '', memo: memo || rawType, displayValue: '' };
 
             // 1. Period Filter
             if (current < cycleStartDate || current >= cycleEndDate) {
-              result.preview.outOfPeriod.push({ ...previewItem, reason: '현재 연차 사용 기간 밖 내역' });
+              result.preview.outOfPeriod.push({ ...previewItem, reason: '현재 연차 기간 밖 내역' });
               current = addDaysByDateKey(current, 1);
               continue;
             }
 
-            // 2. Holiday/Weekend Filter (Ignore non-working days for Full/Half)
+            // 2. Holiday/Weekend Filter
             const isNonWorking = isHolidayOrNonWorkingDay(current, holidays);
             if (isNonWorking && !rawType.includes('시간연차') && !['조퇴', '병가', '지각'].some(k => rawType.includes(k))) {
               current = addDaysByDateKey(current, 1);
               continue;
             }
 
-            // 3. Keyword Match (No Deduction)
+            // 3. Keyword Match
             const searchStr = (rawType + ' ' + memo).trim();
             const foundNoDeduction = NO_DEDUCTION_KEYWORDS.find(k => searchStr.includes(k));
             if (foundNoDeduction) {
@@ -135,7 +148,6 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
                 if (e > '17:50' || e === '23:59' || e === '23:59:00') e = '17:50';
                 if (s < e) mins = subtractLunchMinutes(s, e);
               }
-
               if (mins === 0 || (mins % 60 !== 0 && mins !== 210)) isValid = false;
               else {
                 if (mins >= 420) { mappedType = 'full'; deductedDays = 1; displayValue = '연차 1일'; }

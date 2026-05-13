@@ -11,16 +11,6 @@ export function isHolidayOrNonWorkingDay(dateKey: string, holidays: Holiday[]): 
   return false;
 }
 
-export function groupLeaveRecordsByWeek(records: LeaveRecord[]): Record<string, LeaveRecord[]> {
-  const grouped: Record<string, LeaveRecord[]> = {};
-  for (const record of records) {
-    const weekKey = getWeekKeyByMonday(record.date);
-    if (!grouped[weekKey]) grouped[weekKey] = [];
-    grouped[weekKey].push(record);
-  }
-  return grouped;
-}
-
 export function getContinuousBlock(seedDate: string, records: LeaveRecord[], holidays: Holiday[]): Set<string> {
   const block = new Set<string>();
   const queue = [seedDate];
@@ -47,11 +37,6 @@ export function getContinuousBlock(seedDate: string, records: LeaveRecord[], hol
   return block;
 }
 
-export function isConnectedToNonWorkingDay(dateKey: string, records: LeaveRecord[], holidays: Holiday[]): boolean {
-  const block = getContinuousBlock(dateKey, records, holidays);
-  return Array.from(block).some(d => isHolidayOrNonWorkingDay(d, holidays));
-}
-
 export function findConnectedLeaveBlocks(records: LeaveRecord[], holidays: Holiday[]): Set<string>[] {
   const visited = new Set<string>();
   const blocks: Set<string>[] = [];
@@ -66,30 +51,27 @@ export function findConnectedLeaveBlocks(records: LeaveRecord[], holidays: Holid
   return blocks;
 }
 
-export function calculateConnectedLeaveUsageByWeek(
+export function calculateConnectedLeaveUsageByBlock(
   records: LeaveRecord[],
   holidays: Holiday[],
   period: { start: string; end: string }
 ): number {
   const validRecords = records.filter(r => r.date >= period.start && r.date <= period.end);
-  const weeks = groupLeaveRecordsByWeek(validRecords);
+  if (validRecords.length === 0) return 0;
+  
+  const blocks = findConnectedLeaveBlocks(records, holidays);
   let totalConnections = 0;
   
-  const blocks = findConnectedLeaveBlocks(records, holidays); // Use all records for building connections
-
-  for (const [, weekRecords] of Object.entries(weeks)) {
-    let hasConnectionInWeek = false;
-    for (const record of weekRecords) {
-      const block = blocks.find(b => b.has(record.date));
-      if (block) {
-        const hasNonWorkingDay = Array.from(block).some(d => isHolidayOrNonWorkingDay(d, holidays));
-        if (hasNonWorkingDay) {
-          hasConnectionInWeek = true;
-          break;
-        }
-      }
-    }
-    if (hasConnectionInWeek) {
+  const validRecordDates = new Set(validRecords.map(r => r.date));
+  
+  for (const block of blocks) {
+    // 1. 해당 구간 안에 현재 연차 기간(period)의 사용 내역이 1개 이상 있는지
+    const hasValidLeave = Array.from(block).some(d => validRecordDates.has(d));
+    
+    // 2. 해당 구간 안에 휴무일이 1개 이상 있는지
+    const hasNonWorkingDay = Array.from(block).some(d => isHolidayOrNonWorkingDay(d, holidays));
+    
+    if (hasValidLeave && hasNonWorkingDay) {
       totalConnections++;
     }
   }

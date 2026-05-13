@@ -1,5 +1,5 @@
 import { UserSettings } from '@/types/settings';
-import { parseDateKey, toDateKey } from './dateUtils';
+import { parseDateKey, toDateKey, addDaysByDateKey } from './dateUtils';
 
 export function getCurrentLeavePeriod(settings: UserSettings, todayKey: string): { start: string; end: string } {
   const today = parseDateKey(todayKey);
@@ -22,23 +22,24 @@ export function getCurrentLeavePeriod(settings: UserSettings, todayKey: string):
   }
 
   const hireDate = parseDateKey(settings.hireDate);
-  const hireMonth = hireDate.getMonth();
+  const hireMonth = hireDate.getMonth() + 1; // 1-based
   const hireDay = hireDate.getDate();
 
   let startYear = currentYear;
-  const anniversaryThisYear = new Date(currentYear, hireMonth, hireDay);
+  // Use parseDateKey format to ensure KST
+  const anniversaryThisYearStr = `${currentYear}-${hireMonth.toString().padStart(2, '0')}-${hireDay.toString().padStart(2, '0')}`;
+  const anniversaryThisYear = parseDateKey(anniversaryThisYearStr);
   
   if (today < anniversaryThisYear) {
     startYear = currentYear - 1;
   }
 
-  const startDate = new Date(startYear, hireMonth, hireDay);
-  const endDate = new Date(startYear + 1, hireMonth, hireDay);
-  endDate.setDate(endDate.getDate() - 1); // Previous day of next anniversary
+  const cycleStartDate = `${startYear}-${hireMonth.toString().padStart(2, '0')}-${hireDay.toString().padStart(2, '0')}`;
+  const cycleEndDate = `${startYear + 1}-${hireMonth.toString().padStart(2, '0')}-${hireDay.toString().padStart(2, '0')}`;
 
   return {
-    start: toDateKey(startDate),
-    end: toDateKey(endDate),
+    start: cycleStartDate,
+    end: addDaysByDateKey(cycleEndDate, -1),
   };
 }
 

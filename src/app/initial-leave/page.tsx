@@ -6,7 +6,7 @@ import { useAppData } from '@/components/providers/AppDataProvider';
 import { DatePicker } from '@/components/DatePicker';
 import { LeaveRecord, LeaveRecordType } from '@/types/leave';
 import { toDateKey, addDaysByDateKey, getTodayDateKeyInKorea } from '@/lib/dateUtils';
-import { isHolidayOrNonWorkingDay, calculateConnectedLeaveUsageByWeek } from '@/lib/connectedUsageCalculator';
+import { isHolidayOrNonWorkingDay, calculateConnectedLeaveUsageByBlock } from '@/lib/connectedUsageCalculator';
 import { calculateWorkingMinutes, convertMinutesToLeaveDays } from '@/lib/timeCalculator';
 import { formatLeaveUnits } from '@/lib/leaveFormatter';
 import { calculateGrantedDays } from '@/lib/leaveCalculator';
@@ -56,16 +56,7 @@ export default function InitialLeavePage() {
     }
   }, [isLoaded, appData.settings, appData.leaveRecords, router]);
 
-  // Recalculate auto connected usage when records change
-  useEffect(() => {
-    if (records.length > 0 && isLoaded) {
-      const { cycleStartDate, cycleEndDate } = getCurrentLeaveCycle(appData.settings, getTodayDateKeyInKorea());
-      // period end in calculation is inclusive, so we subtract 1 day from cycleEndDate (which is next reset date)
-      const inclusiveEnd = addDaysByDateKey(cycleEndDate, -1);
-      const autoCount = calculateConnectedLeaveUsageByWeek(records, appData.holidays, { start: cycleStartDate, end: inclusiveEnd });
-      setUsedConsecutive(autoCount);
-    }
-  }, [records, appData.holidays, isLoaded, appData.settings]);
+
 
   // Auto-calculate end time based on duration and start time for hourly
   useEffect(() => {
@@ -214,6 +205,11 @@ export default function InitialLeavePage() {
   const currentInitialTotal = initialUsedDays + (initialUsedHalfDays * 0.5) + (initialUsedHours / 7);
   const totalUsedLeave = currentInitialTotal + calculateTotalRecordsDays();
 
+  const { cycleStartDate, cycleEndDate } = getCurrentLeaveCycle(appData.settings as any, getTodayDateKeyInKorea());
+  const inclusiveEnd = addDaysByDateKey(cycleEndDate, -1);
+  const autoCount = calculateConnectedLeaveUsageByBlock(records, appData.holidays, { start: cycleStartDate, end: inclusiveEnd });
+  const totalConsecutive = usedConsecutive + autoCount;
+
   const granted = isLoaded ? calculateGrantedDays(appData.settings as any, toDateKey(new Date())) : { actual: 0 };
   const totalGranted = granted.actual + (appData.settings.manualLeaveAdjustment || 0);
 
@@ -221,11 +217,11 @@ export default function InitialLeavePage() {
   let warningMessage = '';
   if (totalUsedLeave > totalGranted) {
     warningMessage = `보유 연차(${formatLeaveUnits(totalGranted)})보다 많은 사용량은 입력할 수 없습니다. 앱 사용 전 사용량을 다시 확인해주세요.`;
-  } else if (totalUsedLeave === 0 && usedConsecutive > 0) {
+  } else if (totalUsedLeave === 0 && totalConsecutive > 0) {
     warningMessage = '사용한 연차가 없으면 연휴·공휴일 연결 횟수를 입력할 수 없습니다.';
-  } else if (usedConsecutive > 10) {
+  } else if (totalConsecutive > 10) {
     warningMessage = '연휴·공휴일 연결 횟수는 최대 10회까지 입력할 수 있습니다.';
-  } else if (usedConsecutive > records.length + Math.ceil(currentInitialTotal)) {
+  } else if (totalConsecutive > records.length + Math.ceil(currentInitialTotal)) {
     warningMessage = '연휴·공휴일 연결 횟수가 사용 내역보다 많습니다. 입력값을 확인해주세요.';
   }
 
@@ -336,14 +332,33 @@ export default function InitialLeavePage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">기존 연휴·공휴일 연결 횟수</label>
-              <div className="relative">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">기존 연휴·공휴일 연결 횟수 (직접 입력)</label>
+              <div className="relative mb-2">
                 <input 
                   type="number" step="1" min="0" max="10" value={usedConsecutive} 
                   onChange={(e) => setUsedConsecutive(Number(e.target.value))} 
                   className="w-full border border-gray-300 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 font-medium" 
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">회</span>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm">
+                <div className="flex justify-between text-gray-600 mb-1">
+                  <span>앱 사용 전 (직접 입력):</span>
+                  <span className="font-semibold text-gray-900">{usedConsecutive}회</span>
+                </div>
+                <div className="flex justify-between text-gray-600 mb-1">
+                  <span>앱 사용 후 (사용 내역):</span>
+                  <span className="font-semibold text-gray-900">{autoCount}회</span>
+                </div>
+                <div className="flex justify-between text-blue-800 font-bold border-t border-blue-200 mt-2 pt-2">
+                  <span>총 사용 횟수:</span>
+                  <span>{totalConsecutive}회</span>
+                </div>
+                <div className="flex justify-between text-blue-600 font-semibold mt-1">
+                  <span>남은 연결 횟수:</span>
+                  <span>{10 - totalConsecutive}회</span>
+                </div>
               </div>
             </div>
           </div>
@@ -399,6 +414,20 @@ export default function InitialLeavePage() {
                   <div className="text-lg font-black text-purple-800">{excelResult.preview.outOfPeriod.length}건</div>
                 </div>
               </div>
+
+              {excelResult.debugInfo && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-xs text-blue-800 space-y-1">
+                  <p className="font-bold border-b border-blue-200 pb-1 mb-2">설정 디버그 정보</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>초기화 기준: <strong>{excelResult.debugInfo.resetRule === 'janFirst' ? '매년 1월 1일' : '입사일 기준'}</strong></div>
+                    <div>입사일: <strong>{excelResult.debugInfo.hireDate}</strong></div>
+                    <div>계산 기준일(오늘): <strong>{excelResult.debugInfo.today}</strong></div>
+                    <div className="col-span-2 pt-1 border-t border-blue-100 mt-1">
+                      현재 연차 기간: <strong>{excelResult.debugInfo.cycleStart} ~ {excelResult.debugInfo.cycleEnd} (미만)</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {excelResult.preview.toReflect.length > 0 && (
                 <section>

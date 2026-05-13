@@ -136,11 +136,11 @@ export default function DashboardPage() {
 
             <div className="space-y-3 text-sm text-gray-600 border-t border-gray-100 pt-5">
               <div className="flex justify-between items-center">
-                <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 초기 입력 횟수</span>
+                <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 직접 입력한 앱 사용 전 연결 횟수</span>
                 <span className="font-semibold text-gray-800">{expectedSummary.initialConnectedUsageCount}회</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span> 대시보드 반영 횟수</span>
+                <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span> 사용 내역에서 계산된 연결 횟수</span>
                 <span className="font-semibold text-gray-800">{expectedSummary.recordedConnectedUsageCount}회</span>
               </div>
             </div>
