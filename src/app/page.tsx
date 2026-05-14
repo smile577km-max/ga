@@ -166,6 +166,21 @@ export default function DashboardPage() {
                 <span className="text-[40px] font-semibold text-[#1d1d1f] tracking-[-0.015em]">{expectedSummary.totalConnectedUsageCount}</span>
                 <span className="text-[#1d1d1f] text-[21px] font-semibold">회</span>
               </div>
+              
+              <div className="mt-4 w-full border-t border-[#e0e0e0]/50 pt-4">
+                <p className="text-[11px] font-bold text-[#7a7a7a] uppercase tracking-wider mb-2 text-center">확정된 연결 사용일</p>
+                {expectedSummary.recordedConnectedUsageDates && expectedSummary.recordedConnectedUsageDates.length > 0 ? (
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {expectedSummary.recordedConnectedUsageDates.map(date => (
+                      <span key={date} className="px-2 py-1 bg-white border border-[#e0e0e0] rounded-md text-[11px] font-medium text-[#1d1d1f]">
+                        {date}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[#999999] text-center font-normal">확정된 연결 사용일이 없습니다.</p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-5 text-[14px] text-[#1d1d1f] border-t border-[#e0e0e0] pt-6 mt-auto">

@@ -51,30 +51,49 @@ export function findConnectedLeaveBlocks(records: LeaveRecord[], holidays: Holid
   return blocks;
 }
 
+export function getConnectedLeaveUsageDetails(
+  records: LeaveRecord[],
+  holidays: Holiday[],
+  period: { start: string; end: string }
+): { count: number; dates: string[] } {
+  const validRecords = records.filter(r => r.date >= period.start && r.date <= period.end);
+  if (validRecords.length === 0) return { count: 0, dates: [] };
+  
+  const blocks = findConnectedLeaveBlocks(records, holidays);
+  let totalConnections = 0;
+  const connectedDates = new Set<string>();
+  
+  const validRecordDates = new Set(validRecords.map(r => r.date));
+  
+  for (const block of blocks) {
+    const blockArray = Array.from(block);
+    // 1. 해당 구간 안에 현재 연차 기간(period)의 사용 내역이 1개 이상 있는지
+    const hasValidLeave = blockArray.some(d => validRecordDates.has(d));
+    
+    // 2. 해당 구간 안에 휴무일이 1개 이상 있는지
+    const hasNonWorkingDay = blockArray.some(d => isHolidayOrNonWorkingDay(d, holidays));
+    
+    if (hasValidLeave && hasNonWorkingDay) {
+      totalConnections++;
+      // 연결 사용으로 인정된 실제 사용일들만 추가 (휴무일 자체는 제외)
+      blockArray.forEach(d => {
+        if (validRecordDates.has(d)) {
+          connectedDates.add(d);
+        }
+      });
+    }
+  }
+
+  return { 
+    count: totalConnections, 
+    dates: Array.from(connectedDates).sort() 
+  };
+}
+
 export function calculateConnectedLeaveUsageByBlock(
   records: LeaveRecord[],
   holidays: Holiday[],
   period: { start: string; end: string }
 ): number {
-  const validRecords = records.filter(r => r.date >= period.start && r.date <= period.end);
-  if (validRecords.length === 0) return 0;
-  
-  const blocks = findConnectedLeaveBlocks(records, holidays);
-  let totalConnections = 0;
-  
-  const validRecordDates = new Set(validRecords.map(r => r.date));
-  
-  for (const block of blocks) {
-    // 1. 해당 구간 안에 현재 연차 기간(period)의 사용 내역이 1개 이상 있는지
-    const hasValidLeave = Array.from(block).some(d => validRecordDates.has(d));
-    
-    // 2. 해당 구간 안에 휴무일이 1개 이상 있는지
-    const hasNonWorkingDay = Array.from(block).some(d => isHolidayOrNonWorkingDay(d, holidays));
-    
-    if (hasValidLeave && hasNonWorkingDay) {
-      totalConnections++;
-    }
-  }
-
-  return totalConnections;
+  return getConnectedLeaveUsageDetails(records, holidays, period).count;
 }

@@ -411,8 +411,12 @@ export default function InitialLeavePage() {
                   <div className="text-[17px] font-bold text-[#ff9500]">{excelResult.preview.needsCheck.length}건</div>
                 </div>
                 <div className="bg-[#f5f5f7] p-3 rounded-[11px] text-center border border-[#e0e0e0]">
-                  <div className="text-[11px] text-[#7a7a7a] font-bold mb-1">제외 대상</div>
-                  <div className="text-[17px] font-bold text-[#ff3b30]">{excelResult.preview.duplicates.length + excelResult.preview.excludedByStatus.length}건</div>
+                  <div className="text-[11px] text-[#7a7a7a] font-bold mb-1">중복 제외</div>
+                  <div className="text-[17px] font-bold text-[#ff3b30]">{excelResult.preview.duplicates.length}건</div>
+                </div>
+                <div className="bg-[#f5f5f7] p-3 rounded-[11px] text-center border border-[#e0e0e0]">
+                  <div className="text-[11px] text-[#7a7a7a] font-bold mb-1">처리상태 제외</div>
+                  <div className="text-[17px] font-bold text-[#ff3b30]">{excelResult.preview.excludedByStatus.length}건</div>
                 </div>
                 <div className="bg-[#f5f5f7] p-3 rounded-[11px] text-center border border-[#e0e0e0]">
                   <div className="text-[11px] text-[#7a7a7a] font-bold mb-1">기간 외</div>
@@ -460,9 +464,31 @@ export default function InitialLeavePage() {
                       <tbody className="divide-y divide-[#ff9500]/20">
                         {excelResult.preview.needsCheck.map((item, idx) => (
                           <tr key={idx}>
-                            <td className="p-3 text-[#1d1d1f] font-medium">{item.date}</td>
-                            <td className="p-3 text-[#7a7a7a]">{item.originalType}</td>
+                            <td className="p-3 text-[#1d1d1f] font-medium w-1/4">{item.date}</td>
+                            <td className="p-3 text-[#7a7a7a] w-1/4">{item.originalType}</td>
                             <td className="p-3 font-semibold text-[#ff9500]">{item.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {excelResult.preview.excludedByStatus.length > 0 && (
+                <section>
+                  <h3 className="text-[15px] font-semibold text-[#1d1d1f] mb-4 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ff3b30]"></span>
+                    처리상태 제외
+                  </h3>
+                  <div className="rounded-[11px] border border-[#ff3b30]/30 overflow-hidden bg-[#ff3b30]/5">
+                    <table className="w-full text-[14px]">
+                      <tbody className="divide-y divide-[#ff3b30]/20">
+                        {excelResult.preview.excludedByStatus.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="p-3 text-[#1d1d1f] font-medium w-1/4">{item.date}</td>
+                            <td className="p-3 text-[#7a7a7a] w-1/4">{item.originalType}</td>
+                            <td className="p-3 font-semibold text-[#ff3b30]">{item.displayValue} ({item.memo})</td>
                           </tr>
                         ))}
                       </tbody>

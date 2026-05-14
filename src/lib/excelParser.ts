@@ -60,7 +60,7 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
           return resolve({ records: [], ignoredCount: 0, preview: { toReflect: [], noDeduction: [], needsCheck: [], duplicates: [], excludedByStatus: [], outOfPeriod: [] } });
         }
 
-        const typeCol = 2, dateCol = 3, startTimeCol = 4, endDateCol = 5, endTimeCol = 6, dayCol = 7, hourCol = 8, memoCol = 9;
+        const typeCol = 2, dateCol = 3, startTimeCol = 4, endDateCol = 5, endTimeCol = 6, dayCol = 7, hourCol = 8, memoCol = 9, statusCol = 14;
 
         let dataStartIdx = 0;
         for (let i = 0; i < Math.min(rows.length, 10); i++) {
@@ -91,6 +91,21 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
           const rawDateStr = String(row[dateCol]).trim();
           const rawEndDateStr = row[endDateCol] ? String(row[endDateCol]).trim() : '';
           const memo = String(row[memoCol] || '').trim();
+          const status = String(row[statusCol] || '').trim();
+
+          // 0. Status Filter (Column O)
+          const EXCLUDE_STATUS = ['반려', '취소', '삭제', '임시저장'];
+          if (EXCLUDE_STATUS.some(s => status.includes(s))) {
+            const startKey = rawDateStr.includes('-') ? rawDateStr : toDateKey(new Date(rawDateStr));
+            result.preview.excludedByStatus.push({
+              date: startKey,
+              originalType: rawType,
+              mappedType: '',
+              memo: status,
+              displayValue: '처리상태 제외'
+            });
+            return;
+          }
 
           const startKey = rawDateStr.includes('-') ? rawDateStr : toDateKey(new Date(rawDateStr));
           const endKey = rawEndDateStr ? (rawEndDateStr.includes('-') ? rawEndDateStr : toDateKey(new Date(rawEndDateStr))) : startKey;

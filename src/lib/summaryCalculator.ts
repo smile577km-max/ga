@@ -3,7 +3,7 @@ import { LeaveRecord } from '@/types/leave';
 import { Holiday } from '@/types/holiday';
 import { getCurrentLeavePeriod, getNextResetDate, getDaysUntilReset, getCurrentLeaveCycle, getConnectedUsageCycle } from './periodCalculator';
 import { calculateGrantedDays } from './leaveCalculator';
-import { calculateConnectedLeaveUsageByBlock } from './connectedUsageCalculator';
+import { calculateConnectedLeaveUsageByBlock, getConnectedLeaveUsageDetails } from './connectedUsageCalculator';
 import { convertMinutesToLeaveDays } from './timeCalculator';
 import { addDaysByDateKey } from './dateUtils';
 
@@ -67,7 +67,9 @@ export function calculateLeaveSummary(
   const { cycleStartDate: connStart, cycleEndDate: connEnd } = getConnectedUsageCycle(todayKey);
   const connInclusiveEnd = addDaysByDateKey(connEnd, -1);
   
-  const recordedConnectedUsageCount = calculateConnectedLeaveUsageByBlock(records, holidays, { start: connStart, end: connInclusiveEnd });
+  const connectedDetails = getConnectedLeaveUsageDetails(records, holidays, { start: connStart, end: connInclusiveEnd });
+  const recordedConnectedUsageCount = connectedDetails.count;
+  const recordedConnectedUsageDates = connectedDetails.dates;
   const totalConnectedUsageCount = settings.usedConsecutiveLeaveAdjustment + recordedConnectedUsageCount;
   const remainingConnectedUsageCount = 10 - totalConnectedUsageCount;
 
@@ -87,6 +89,7 @@ export function calculateLeaveSummary(
     remainingDays,
     initialConnectedUsageCount: settings.usedConsecutiveLeaveAdjustment,
     recordedConnectedUsageCount,
+    recordedConnectedUsageDates,
     totalConnectedUsageCount,
     remainingConnectedUsageCount,
     nextResetDate: getNextResetDate(settings, todayKey),
