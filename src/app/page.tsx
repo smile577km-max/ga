@@ -64,7 +64,13 @@ export default function DashboardPage() {
         <div className="max-w-[980px] mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-[28px] font-semibold tracking-[-0.015em] text-[#1d1d1f]">{appData.settings.name}님의 남은 연차 계산기</h1>
-            <p className="text-[14px] text-[#7a7a7a] mt-1 font-normal tracking-tight">계산 기준일: <span className="font-semibold text-[#1d1d1f]">오늘 ({todayKey})</span> | 다음 초기화: <span className="font-semibold text-[#1d1d1f]">{expectedSummary.nextResetDate}</span></p>
+            <div className="text-[14px] text-[#7a7a7a] mt-1 font-normal tracking-tight flex flex-wrap gap-x-3 gap-y-1">
+              <span>계산 기준일: <span className="font-semibold text-[#1d1d1f]">오늘 ({todayKey})</span></span>
+              <span className="hidden md:inline text-[#e0e0e0]">|</span>
+              <span>다음 연차 초기화: <span className="font-semibold text-[#1d1d1f]">{expectedSummary.nextResetDate}</span></span>
+              <span className="hidden md:inline text-[#e0e0e0]">|</span>
+              <span>다음 연결 사용 초기화: <span className="font-semibold text-[#1d1d1f]">{expectedSummary.connectedResetDate}</span></span>
+            </div>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
             <button onClick={() => router.push('/settings')} className="flex-1 md:flex-none px-5 py-2.5 bg-transparent text-[#0066cc] border border-[#0066cc] rounded-full text-[14px] font-normal hover:bg-[#0066cc]/5 transition active:scale-95">내 기준 수정</button>
@@ -163,14 +169,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-5 text-[14px] text-[#1d1d1f] border-t border-[#e0e0e0] pt-6 mt-auto">
-              <div className="flex flex-col gap-1">
-                <span className="text-[12px] font-normal text-[#7a7a7a]">연결 사용 횟수 초기화일</span>
-                <span className="text-[16px] font-semibold text-[#1d1d1f]">{expectedSummary.connectedResetDate?.replace(/-/g, '.')}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[12px] font-normal text-[#7a7a7a]">초기화일까지 남은 일수</span>
-                <span className="text-[16px] font-semibold text-[#0066cc]">{expectedSummary.connectedDaysUntilReset}일 남음</span>
-              </div>
+              {/* Reset info moved to top header */}
             </div>
           </div>
 
