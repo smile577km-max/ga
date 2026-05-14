@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { LeaveRecord, LeaveRecordType } from '@/types/leave';
-import { toDateKey, addDaysByDateKey } from './dateUtils';
+import { toDateKey, addDaysByDateKey, parseDateKey } from './dateUtils';
 import { subtractLunchMinutes } from './timeCalculator';
 import { UserSettings } from '@/types/settings';
 import { getCurrentLeaveCycle } from './periodCalculator';
@@ -19,6 +19,7 @@ export interface ExcelParsedResult {
     excludedByStatus: ExcelPreviewItem[];
     outOfPeriod: ExcelPreviewItem[];
   };
+  attendanceUpdates?: Record<string, boolean>; // YYYY-MM: false
   debugInfo?: {
     resetRule: string;
     hireDate: string;
@@ -70,6 +71,7 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
         const result: ExcelParsedResult = { 
           records: [], ignoredCount: 0, 
           preview: { toReflect: [], noDeduction: [], needsCheck: [], duplicates: [], excludedByStatus: [], outOfPeriod: [] },
+          attendanceUpdates: {},
           debugInfo: {
             resetRule: settings.resetRule || '미설정',
             hireDate: settings.hireDate || '미설정',
@@ -78,6 +80,9 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
             cycleEnd: cycleEndDate
           }
         };
+
+        const simpleLateMonthlyCounts: Record<string, number> = {};
+        const monthDeductedOneHour: Record<string, boolean> = {};
 
         dataRows.forEach((row) => {
           if (!row[typeCol] || !row[dateCol]) return;
@@ -117,12 +122,65 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
               continue;
             }
 
-            // 4. Type Mapping
+            // 4. Service Year Check
+            const hireDate = settings.hireDate ? parseDateKey(settings.hireDate) : null;
+            const currentDate = parseDateKey(current);
+            let yearsOfService = 0;
+            if (hireDate) {
+              yearsOfService = currentDate.getFullYear() - hireDate.getFullYear();
+              const anniversaryThisYear = new Date(currentDate.getFullYear(), hireDate.getMonth(), hireDate.getDate());
+              if (currentDate < anniversaryThisYear) yearsOfService--;
+            }
+
+            // 5. Type Mapping & Late Rules
             let finalType: LeaveRecordType | 'UNKNOWN' = 'UNKNOWN';
-            if (rawType.includes('시간연차')) finalType = 'hourly';
+            let deductedDays = 0, deductedMinutes = 0, displayValue = '', isValid = true;
+            let isLate = rawType === '지각';
+
+            if (isLate) {
+              const arrivalTime = (String(row[endTimeCol] || '').trim() || String(row[startTimeCol] || '').trim());
+              const monthKey = current.substring(0, 7); // YYYY-MM
+
+              if (yearsOfService < 1) {
+                // Rule 2: Under 1 year, late means no leave next month
+                if (result.attendanceUpdates) result.attendanceUpdates[monthKey] = false;
+                finalType = 'hourly';
+                deductedMinutes = 0;
+                displayValue = '만근 아님';
+              } else {
+                // Rule 3: 1 year or more, late deduction rules
+                if (arrivalTime > '09:50' && arrivalTime < '10:50') {
+                  // Simple Late
+                  simpleLateMonthlyCounts[monthKey] = (simpleLateMonthlyCounts[monthKey] || 0) + 1;
+                  if (simpleLateMonthlyCounts[monthKey] >= 2 && !monthDeductedOneHour[monthKey]) {
+                    finalType = 'hourly';
+                    deductedMinutes = 60;
+                    displayValue = '시간연차 1시간';
+                    monthDeductedOneHour[monthKey] = true;
+                  } else {
+                    finalType = 'hourly';
+                    deductedMinutes = 0;
+                    displayValue = '차감 없음';
+                  }
+                } else if (arrivalTime >= '10:50' && arrivalTime < '14:20') {
+                  finalType = 'afternoonHalf'; // Or morningHalf, user said "반차 1회"
+                  deductedDays = 0.5;
+                  displayValue = '반차 1회';
+                } else if (arrivalTime >= '14:20') {
+                  finalType = 'full';
+                  deductedDays = 1.0;
+                  displayValue = '연차 1일';
+                } else {
+                  // Arrived before 09:50 but marked as late?
+                  finalType = 'hourly';
+                  deductedMinutes = 0;
+                  displayValue = '차감 없음';
+                }
+              }
+            } else if (rawType.includes('시간연차')) finalType = 'hourly';
             else if (rawType.includes('반차')) finalType = rawType.includes('오후') ? 'afternoonHalf' : 'morningHalf';
             else if (rawType.includes('연차')) finalType = 'full';
-            else if (['조퇴', '병가', '지각'].some(k => rawType.includes(k))) finalType = 'hourly';
+            else if (['조퇴', '병가'].some(k => rawType.includes(k))) finalType = 'hourly';
 
             if (finalType === 'UNKNOWN') {
               result.preview.needsCheck.push({ ...previewItem, reason: '구분 인식 불가', displayValue: '확인 필요' });
@@ -130,29 +188,29 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
               continue;
             }
 
-            // 5. Calculation
-            let mappedType: LeaveRecordType = finalType;
-            let deductedDays = 0, deductedMinutes = 0, displayValue = '', isValid = true;
-
-            if (mappedType === 'full') {
-              deductedDays = 1; displayValue = '연차 1일';
-            } else if (mappedType === 'morningHalf' || mappedType === 'afternoonHalf') {
-              deductedDays = 0.5; displayValue = '반차 1회';
-            } else if (mappedType === 'hourly') {
-              let mins = 0;
-              const h = Number(row[hourCol]);
-              if (!isNaN(h) && h > 0) mins = h * 60;
-              else {
-                let s = String(row[startTimeCol] || '').trim(), e = String(row[endTimeCol] || '').trim();
-                if (s === '00:00' || s === '00:00:00' || s < '09:50') s = '09:50';
-                if (e > '17:50' || e === '23:59' || e === '23:59:00') e = '17:50';
-                if (s < e) mins = subtractLunchMinutes(s, e);
-              }
-              if (mins === 0 || (mins % 60 !== 0 && mins !== 210)) isValid = false;
-              else {
-                if (mins >= 420) { mappedType = 'full'; deductedDays = 1; displayValue = '연차 1일'; }
-                else if (mins === 210) { mappedType = 'morningHalf'; deductedDays = 0.5; displayValue = '반차 1회'; }
-                else { deductedMinutes = mins; displayValue = `시간연차 ${mins / 60}시간`; }
+            // 6. Finalizing Type & Calculation
+            let mappedType: LeaveRecordType = finalType as LeaveRecordType;
+            if (!isLate) {
+              if (mappedType === 'full') {
+                deductedDays = 1; displayValue = '연차 1일';
+              } else if (mappedType === 'morningHalf' || mappedType === 'afternoonHalf') {
+                deductedDays = 0.5; displayValue = '반차 1회';
+              } else if (mappedType === 'hourly') {
+                let mins = 0;
+                const h = Number(row[hourCol]);
+                if (!isNaN(h) && h > 0) mins = h * 60;
+                else {
+                  let s = String(row[startTimeCol] || '').trim(), e = String(row[endTimeCol] || '').trim();
+                  if (s === '00:00' || s === '00:00:00' || s < '09:50') s = '09:50';
+                  if (e > '17:50' || e === '23:59' || e === '23:59:00') e = '17:50';
+                  if (s < e) mins = subtractLunchMinutes(s, e);
+                }
+                if (mins === 0 || (mins % 60 !== 0 && mins !== 210)) isValid = false;
+                else {
+                  if (mins >= 420) { mappedType = 'full'; deductedDays = 1; displayValue = '연차 1일'; }
+                  else if (mins === 210) { mappedType = 'morningHalf'; deductedDays = 0.5; displayValue = '반차 1회'; }
+                  else { deductedMinutes = mins; displayValue = `시간연차 ${mins / 60}시간`; }
+                }
               }
             }
 
@@ -167,6 +225,8 @@ export async function parseExcelLeaveFile(file: File, existingRecords: LeaveReco
 
             if (existingRecords.some(r => r.date === current && r.type === mappedType && (mappedType !== 'hourly' || r.deductedMinutes === deductedMinutes))) {
               result.preview.duplicates.push({ ...previewItem, reason: '중복' });
+            } else if (displayValue === '차감 없음' || displayValue === '만근 아님') {
+              result.preview.noDeduction.push(previewItem);
             } else {
               result.preview.toReflect.push(previewItem);
               result.records.push({

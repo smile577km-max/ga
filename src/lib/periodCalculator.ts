@@ -71,3 +71,12 @@ export function getCurrentLeaveCycle(settings: UserSettings, todayKey: string): 
   const cycleEndDate = getNextResetDate(settings, todayKey);
   return { cycleStartDate, cycleEndDate };
 }
+
+export function getConnectedUsageCycle(todayKey: string): { cycleStartDate: string; cycleEndDate: string } {
+  const today = parseDateKey(todayKey);
+  const currentYear = today.getFullYear();
+  return {
+    cycleStartDate: `${currentYear}-01-01`,
+    cycleEndDate: `${currentYear + 1}-01-01`,
+  };
+}

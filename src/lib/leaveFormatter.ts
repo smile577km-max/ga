@@ -31,14 +31,26 @@ export function normalizeLeaveUnits(totalDays: number): LeaveUnits {
  * 정규화된 단위를 문자열로 포맷팅
  */
 export function formatLeaveUnits(totalDays: number): string {
-  const { days, hours } = normalizeLeaveUnits(totalDays);
+  if (totalDays === 0.5) return "반차 1회";
+  if (totalDays === 0) return "차감 없음";
+
+  const totalHours = totalDays * 7;
+  const days = Math.floor(totalDays);
+  const remainingHours = (totalDays - days) * 7;
   
   const parts: string[] = [];
   
   if (days > 0) parts.push(`연차 ${days}일`);
-  if (hours > 0) parts.push(`시간연차 ${hours}시간`);
   
-  if (parts.length === 0) return "연차 0일";
+  if (remainingHours > 0) {
+    if (remainingHours === 3.5) {
+      parts.push("반차 1회");
+    } else {
+      parts.push(`시간연차 ${Math.round(remainingHours)}시간`);
+    }
+  }
+  
+  if (parts.length === 0) return "차감 없음";
   
   return parts.join(" · ");
 }

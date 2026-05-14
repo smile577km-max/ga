@@ -1,7 +1,7 @@
 import { UserSettings } from '@/types/settings';
 import { LeaveRecord } from '@/types/leave';
 import { Holiday } from '@/types/holiday';
-import { getCurrentLeavePeriod, getNextResetDate, getDaysUntilReset, getCurrentLeaveCycle } from './periodCalculator';
+import { getCurrentLeavePeriod, getNextResetDate, getDaysUntilReset, getCurrentLeaveCycle, getConnectedUsageCycle } from './periodCalculator';
 import { calculateGrantedDays } from './leaveCalculator';
 import { calculateConnectedLeaveUsageByBlock } from './connectedUsageCalculator';
 import { convertMinutesToLeaveDays } from './timeCalculator';
@@ -62,9 +62,20 @@ export function calculateLeaveSummary(
   const remainingDays = granted.actual + settings.manualLeaveAdjustment - totalUsedDays;
 
   const inclusiveEnd = addDaysByDateKey(cycleEndDate, -1);
-  const recordedConnectedUsageCount = calculateConnectedLeaveUsageByBlock(records, holidays, { start: cycleStartDate, end: inclusiveEnd });
+  
+  // Connected leave always resets on Jan 1st
+  const { cycleStartDate: connStart, cycleEndDate: connEnd } = getConnectedUsageCycle(todayKey);
+  const connInclusiveEnd = addDaysByDateKey(connEnd, -1);
+  
+  const recordedConnectedUsageCount = calculateConnectedLeaveUsageByBlock(records, holidays, { start: connStart, end: connInclusiveEnd });
   const totalConnectedUsageCount = settings.usedConsecutiveLeaveAdjustment + recordedConnectedUsageCount;
   const remainingConnectedUsageCount = 10 - totalConnectedUsageCount;
+
+  // Connected reset info
+  const connectedResetDate = connEnd;
+  const connResetDateObj = new Date(connectedResetDate);
+  const todayObj = new Date(todayKey);
+  const connectedDaysUntilReset = Math.ceil((connResetDateObj.getTime() - todayObj.getTime()) / (1000 * 60 * 60 * 24));
 
   return {
     totalGrantedDays: granted.total,
@@ -80,5 +91,7 @@ export function calculateLeaveSummary(
     remainingConnectedUsageCount,
     nextResetDate: getNextResetDate(settings, todayKey),
     daysUntilReset: getDaysUntilReset(settings, todayKey),
+    connectedResetDate,
+    connectedDaysUntilReset,
   };
 }

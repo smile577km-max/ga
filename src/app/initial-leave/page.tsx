@@ -186,6 +186,15 @@ export default function InitialLeavePage() {
       return updated;
     });
     
+    if (excelResult.attendanceUpdates && Object.keys(excelResult.attendanceUpdates).length > 0) {
+      updateSettings({
+        monthlyPerfectAttendance: {
+          ...appData.settings.monthlyPerfectAttendance,
+          ...excelResult.attendanceUpdates
+        }
+      });
+    }
+    
     setShowExcelPreview(false);
     setExcelResult(null);
   };

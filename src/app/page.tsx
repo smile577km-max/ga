@@ -78,23 +78,28 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 order-first">
           {/* 남은 연차 카드 */}
           <div className="bg-white p-7 rounded-[18px] border border-[#e0e0e0] flex flex-col relative overflow-hidden group">
-            <h2 className="text-[17px] font-semibold tracking-[-0.022em] text-[#1d1d1f] mb-3">
-              남은 연차 <span className="text-[14px] font-normal text-[#7a7a7a]">(사용 예정 포함)</span>
-            </h2>
+            <div className="flex flex-col gap-1 mb-3">
+              <h2 className="text-[13px] font-normal text-[#7a7a7a]">예상 남은 연차</h2>
+              <p className="text-[11px] font-normal text-[#999999]">(사용 예정 포함)</p>
+            </div>
             <FormattedLeaveUnits 
               text={formatLeaveUnits(expectedSummary.remainingDays)} 
               colorClass={expectedSummary.remainingDays < 0 ? 'text-[#ff3b30]' : 'text-[#1d1d1f]'} 
-              valueClass="text-[40px] tracking-[-0.015em] font-semibold"
+              valueClass="text-[28px] tracking-[-0.015em] font-semibold"
             />
-            {expectedSummary.remainingDays < 0 && <p className="text-[14px] font-semibold text-[#ff3b30] mt-4">⚠️ 사용할 수 있는 연차를 초과했습니다!</p>}
-            <div className="mt-6 space-y-2">
-              <div className="flex items-center justify-between text-[14px] font-normal border-t border-[#e0e0e0] pt-4">
-                <span className="text-[#7a7a7a]">현재 사용 완료 기준</span>
-                <span className="text-[#1d1d1f] font-semibold">{formatLeaveUnits(currentSummary.remainingDays)}</span>
+            {expectedSummary.remainingDays < 0 && <p className="text-[13px] font-semibold text-[#ff3b30] mt-4">⚠️ 사용할 수 있는 연차를 초과했습니다!</p>}
+            <div className="mt-6 space-y-4">
+              <div className="flex flex-col gap-2 border-t border-[#e0e0e0] pt-5">
+                <span className="text-[12px] font-normal text-[#7a7a7a]">현재 남은 연차 (사용 완료 기준)</span>
+                <FormattedLeaveUnits 
+                  text={formatLeaveUnits(currentSummary.remainingDays)} 
+                  valueClass="text-[16px]"
+                />
               </div>
               {appData.settings.hireDate && (new Date(todayKey).getTime() - new Date(appData.settings.hireDate).getTime()) < (365 * 24 * 60 * 60 * 1000) && (
-                <div className="text-[14px] text-[#0066cc] font-normal mt-2">
-                  1년 미만: 앞으로 추가 발생 가능한 월차 {expectedSummary.projectedGrantedDays}일
+                <div className="flex flex-col gap-1 pt-2">
+                  <span className="text-[11px] text-[#7a7a7a] font-normal">입사 1년 미만</span>
+                  <span className="text-[13px] text-[#0066cc] font-semibold">앞으로 추가 발생 가능: {expectedSummary.projectedGrantedDays}일</span>
                 </div>
               )}
             </div>
@@ -102,32 +107,43 @@ export default function DashboardPage() {
 
           {/* 총 사용 연차 카드 */}
           <div className="bg-white p-7 rounded-[18px] border border-[#e0e0e0] flex flex-col relative overflow-hidden">
-            <h2 className="text-[17px] font-semibold tracking-[-0.022em] text-[#1d1d1f] mb-3">총 사용 연차 <span className="text-[14px] font-normal text-[#7a7a7a]">(예정 포함)</span></h2>
+            <div className="flex flex-col gap-1 mb-3">
+              <h2 className="text-[13px] font-normal text-[#7a7a7a]">총 사용 연차</h2>
+              <p className="text-[11px] font-normal text-[#999999]">(예정 포함)</p>
+            </div>
             <FormattedLeaveUnits 
               text={formatLeaveUnits(expectedSummary.totalUsedDays)} 
               colorClass="text-[#1d1d1f]"
-              valueClass="text-[40px] tracking-[-0.015em] font-semibold"
+              valueClass="text-[28px] tracking-[-0.015em] font-semibold"
             />
-            <div className="mt-auto pt-6 border-t border-[#e0e0e0]">
-               <div className="flex items-center justify-between text-[14px] font-normal">
-                 <span className="text-[#7a7a7a]">현재 사용 완료</span>
-                 <span className="text-[#1d1d1f] font-semibold">{formatLeaveUnits(currentSummary.totalUsedDays)}</span>
+            <div className="mt-auto pt-6">
+               <div className="flex flex-col gap-2 border-t border-[#e0e0e0] pt-5">
+                 <span className="text-[12px] font-normal text-[#7a7a7a]">현재 사용 완료</span>
+                 <FormattedLeaveUnits 
+                  text={formatLeaveUnits(currentSummary.totalUsedDays)} 
+                  valueClass="text-[16px]"
+                 />
                </div>
             </div>
           </div>
 
           {/* 남은 연휴·공휴일 연결 횟수 카드 */}
           <div className="bg-white p-7 rounded-[18px] border border-[#e0e0e0] flex flex-col relative overflow-hidden">
-            <h2 className="text-[17px] font-semibold tracking-[-0.022em] text-[#1d1d1f] mb-3">남은 연결 횟수</h2>
-            <div className="flex items-baseline gap-1 mt-1">
-              <p className={`text-[40px] font-semibold tracking-[-0.015em] ${expectedSummary.remainingConnectedUsageCount < 0 ? 'text-[#ff3b30]' : 'text-[#1d1d1f]'}`}>{expectedSummary.remainingConnectedUsageCount}</p>
-              <span className={`text-[21px] font-semibold ${expectedSummary.remainingConnectedUsageCount < 0 ? 'text-[#ff3b30]' : 'text-[#1d1d1f]'}`}>회</span>
+            <div className="flex flex-col gap-1 mb-3">
+              <h2 className="text-[13px] font-normal text-[#7a7a7a]">남은 연결 횟수</h2>
             </div>
-            {expectedSummary.remainingConnectedUsageCount < 0 && <p className="text-[14px] font-semibold text-[#ff3b30] mt-4">⚠️ 연결 사용 횟수를 초과했습니다!</p>}
-            <div className="mt-auto pt-6 border-t border-[#e0e0e0]">
-               <div className="flex items-center justify-between text-[14px] font-normal">
-                 <span className="text-[#7a7a7a]">총 보유 연차</span>
-                 <span className="text-[#1d1d1f] font-semibold">{formatLeaveUnits(expectedSummary.actualGrantedDays + appData.settings.manualLeaveAdjustment)}</span>
+            <div className="flex items-baseline gap-1 mt-1">
+              <p className={`text-[36px] font-semibold tracking-[-0.015em] ${expectedSummary.remainingConnectedUsageCount < 0 ? 'text-[#ff3b30]' : 'text-[#1d1d1f]'}`}>{expectedSummary.remainingConnectedUsageCount}</p>
+              <span className={`text-[18px] font-semibold ${expectedSummary.remainingConnectedUsageCount < 0 ? 'text-[#ff3b30]' : 'text-[#1d1d1f]'}`}>회</span>
+            </div>
+            {expectedSummary.remainingConnectedUsageCount < 0 && <p className="text-[13px] font-semibold text-[#ff3b30] mt-4">⚠️ 연결 사용 횟수를 초과했습니다!</p>}
+            <div className="mt-auto pt-6">
+               <div className="flex flex-col gap-2 border-t border-[#e0e0e0] pt-5">
+                 <span className="text-[12px] font-normal text-[#7a7a7a]">총 보유 연차</span>
+                 <FormattedLeaveUnits 
+                  text={formatLeaveUnits(expectedSummary.actualGrantedDays + appData.settings.manualLeaveAdjustment)} 
+                  valueClass="text-[16px]"
+                 />
                </div>
             </div>
           </div>
@@ -146,14 +162,14 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="space-y-4 text-[14px] text-[#1d1d1f] border-t border-[#e0e0e0] pt-6 mt-auto">
-              <div className="flex justify-between items-center">
-                <span className="font-normal text-[#7a7a7a]">직접 입력한 연결 횟수</span>
-                <span className="font-semibold text-[#1d1d1f]">{expectedSummary.initialConnectedUsageCount}회</span>
+            <div className="space-y-5 text-[14px] text-[#1d1d1f] border-t border-[#e0e0e0] pt-6 mt-auto">
+              <div className="flex flex-col gap-1">
+                <span className="text-[12px] font-normal text-[#7a7a7a]">연결 사용 횟수 초기화일</span>
+                <span className="text-[16px] font-semibold text-[#1d1d1f]">{expectedSummary.connectedResetDate?.replace(/-/g, '.')}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="font-normal text-[#7a7a7a]">사용 내역 계산 연결 횟수</span>
-                <span className="font-semibold text-[#1d1d1f]">{expectedSummary.recordedConnectedUsageCount}회</span>
+              <div className="flex flex-col gap-1">
+                <span className="text-[12px] font-normal text-[#7a7a7a]">초기화일까지 남은 일수</span>
+                <span className="text-[16px] font-semibold text-[#0066cc]">{expectedSummary.connectedDaysUntilReset}일 남음</span>
               </div>
             </div>
           </div>
@@ -162,14 +178,14 @@ export default function DashboardPage() {
             {/* 상세 연차 기록 */}
             <div className="bg-white p-7 rounded-[18px] border border-[#e0e0e0]">
               <h2 className="text-[17px] font-semibold tracking-[-0.022em] text-[#1d1d1f] mb-5">상세 연차 기록</h2>
-              <ul className="space-y-3 text-[14px] text-[#1d1d1f]">
-                <li className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-[#f5f5f7] rounded-[11px] gap-2">
-                  <span className="font-normal text-[#7a7a7a]">초기 입력 사용량</span> 
-                  <FormattedLeaveUnits text={formatLeaveUnits(expectedSummary.initialUsedDays)} />
+              <ul className="space-y-4 text-[14px] text-[#1d1d1f]">
+                <li className="flex flex-col p-4 bg-[#f5f5f7] rounded-[11px] gap-2">
+                  <span className="text-[12px] font-normal text-[#7a7a7a]">초기 입력 사용량</span> 
+                  <FormattedLeaveUnits text={formatLeaveUnits(expectedSummary.initialUsedDays)} valueClass="text-[15px]" />
                 </li>
-                <li className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-[#f5f5f7] rounded-[11px] gap-2">
-                  <span className="font-normal text-[#7a7a7a]">이후 입력 사용량</span> 
-                  <FormattedLeaveUnits text={formatLeaveUnits(expectedSummary.recordedUsedDays)} />
+                <li className="flex flex-col p-4 bg-[#f5f5f7] rounded-[11px] gap-2">
+                  <span className="text-[12px] font-normal text-[#7a7a7a]">이후 입력 사용량</span> 
+                  <FormattedLeaveUnits text={formatLeaveUnits(expectedSummary.recordedUsedDays)} valueClass="text-[15px]" />
                 </li>
               </ul>
               <button onClick={() => router.push('/history')} className="w-full mt-6 py-3 text-[14px] font-normal text-[#0066cc] bg-transparent border border-[#0066cc] hover:bg-[#0066cc]/5 rounded-full transition">
